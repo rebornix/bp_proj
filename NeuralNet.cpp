@@ -4,10 +4,12 @@
 
 #include "backprop.h"
 #include <fstream>
+#include <time.h>
+
 using namespace std;
 
 
-double beta = 0.0005, alpha = 0.1, Thresh =  0.00001;
+double beta = 0.1, alpha = 0.1, Thresh =  0.00001;
 int reverseInt (int i) 
 {
     unsigned char c1, c2, c3, c4;
@@ -71,12 +73,7 @@ void train_images(int *labels, CBackProp *bp, int num_iter)
 					{
 						unsigned char temp=0;
 						file.read((char*)&temp,sizeof(temp));
-						if (file.good() ){
-							img[r * 28 + c] = temp - 0x00;
-						}
-						else {
-							cout << " bad file read" <<endl;
-						}
+						img[r * 28 + c] = (temp - 0x00) / 255.0 ;
 					}
 				}
 				// read ith image
@@ -114,7 +111,6 @@ void test_images(int *labels, CBackProp *bp)
         n_rows= reverseInt(n_rows);
         file.read((char*)&n_cols,sizeof(n_cols));
         n_cols= reverseInt(n_cols);
-		cout << n_rows << n_cols << endl;
 		double img[784];
 		int count = 0;
 		for(int i=0;i<number_of_images;++i)
@@ -125,26 +121,22 @@ void test_images(int *labels, CBackProp *bp)
                 {
                     unsigned char temp=0;
                     file.read((char*)&temp,sizeof(temp));
-					if (file.good() ){
-						img[r * 28 + c] = temp - 0x00;
-					}
-					else {
-						cout << " bad file read" <<endl;
-					}
+					img[r * 28 + c] = (temp - 0x00) / 255.0;
                 }
             }
 			// read ith image
 			bp->ffwd(img); 
-			if( 1 - bp->Out(labels[i]) < 0.2 ){
+			int max_no = 0;
+			double max = bp->Out(0);
+			for(int itr = 0; itr < 10; itr++ ){
+				if( bp->Out(itr) > max ){
+					max = bp->Out(itr);
+					max_no = itr;
+				}
+			}
+			if( max_no == labels[i] )
 				count++;
-			}
-			//cout << bp->Out(0) << " " << labels[i] << endl;
-			/*
-			if( bp->mse(&labels[i]) < Thresh) {
-				cout << "Train complete " << endl;
-				return ;
-			}
-			*/
+			
         }
 		cout << count / 10000.0 << endl;
 		cout << "Iteration ends" << endl;
@@ -156,17 +148,24 @@ int main(int argc, char* argv[])
 	read_label(labels);
 	for (int i = 0; i < 1000; i++ )
 		cout << labels[i];
-	int numLayers = 3, lSz[3] = {784, 300, 10};
+	int numLayers = 3, lSz[3] = {784,50, 10};
 
 	// maximum no of iterations during training
 	long num_iter = 100;
 
+	
 	// Creating the net
 	CBackProp *bp = new CBackProp(numLayers, lSz, beta, alpha);
 	cout<< endl <<  "Now training the network...." << endl;	
+	clock_t start, end;
+	double duration;
+	start = clock();
 	train_images(labels, bp, num_iter);
 	cout << "start test " << endl; 
 	test_images(labels, bp);
+	end = clock();
+	duration = (double)(end - start) / 1000.0 / 60.0; // min
+	cout << " Use: " << duration << " Min" << endl;
 	
 
 	/*
